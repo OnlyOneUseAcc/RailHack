@@ -1,6 +1,5 @@
 import pickle
 import pandas as pd
-from impyute.imputation.cs import mice
 from tqdm import tqdm
 from settings import NUM_FEATURES
 from sklearn.ensemble import IsolationForest
@@ -11,6 +10,7 @@ from sklearn import preprocessing
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
 
+'''
 
 def fill_empty_values(data: pd.DataFrame):
     imputed_training = mice(data.values)
@@ -20,6 +20,8 @@ def fill_empty_values(data: pd.DataFrame):
     return pd.DataFrame(data_array,
                         columns=data.columns,
                         index=data.index)
+
+'''
 
 
 def fill_empty_values_by_location(full_data):
@@ -153,7 +155,7 @@ def default_preprocess(data, scaler=None):
         data = pd.DataFrame(scaler.fit_transform(data),
                             columns=NUM_FEATURES,
                             index=data.index)
-        with open('models/scaler.pkl', 'wb') as scaler_file:
+        with open('../models/scaler.pkl', 'wb') as scaler_file:
             pickle.dump(scaler, scaler_file)
 
     else:

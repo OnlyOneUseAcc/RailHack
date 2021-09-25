@@ -1,3 +1,4 @@
+import catboost
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
@@ -46,6 +47,7 @@ class HouseModel:
 
     def __init__(self):
         self.regression_model = self.__create_model()
+        self.error_model = self.__create_error_model()
         self.error = 0
 
     def fit(self, data_model: DataModel):
@@ -63,20 +65,27 @@ class HouseModel:
 
         print(f'средняя ошибка при предсказании экспертных значений {self.error}')
 
-
+        self.error_model.fit(
+            data_model.e_X_train,
+            expert_prediction - data_model.e_y_train
+        )
     def predict(self, X):
+        self.error = self.error_model.predict(X)
         return self.regression_model.predict(X) - self.error
 
     def __create_model(self):
-        model = SuperLearner(verbose=2)
+        model = SuperLearner(verbose=2, random_state=21)
         model.add([
             KNeighborsRegressor(n_neighbors=10),
-            RandomForestRegressor()
+            RandomForestRegressor(random_state=21)
         ])
 
         model.add_meta(LinearRegression())
         return model
 
+    def __create_error_model(self):
+        model = catboost.CatBoostRegressor(iterations=10000, random_state=21)
+        return model
 
 if __name__ == '__main__':
     X, y = fetch_california_housing(return_X_y=True)

@@ -26,13 +26,13 @@ def parse_args():
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
-    parser.add_argument("--train_data", "-d", type=str, dest="d", required=True,
+    parser.add_argument("--train_data", "-d", type=str, dest="d", required=False, default='../data/train.csv',
                         help="Путь до обучающего датасета")
-    parser.add_argument("--model_path", "-mp", type=str, dest="mp", default="models/model.pkl",
+    parser.add_argument("--model_path", "-mp", type=str, dest="mp", default="../models/model.pkl",
                         help="Куда сохранить обученную ML модель")
     parser.add_argument("--preprocess", default=True, type=lambda x: parse_bool(x),
                         help="Нужна ли предобработка данных")
-    parser.add_argument("--split_data", default=False, type=lambda x: parse_bool(x),
+    parser.add_argument("--split_data", default=True, type=lambda x: parse_bool(x),
                         help="Необходимо ли делить данные на обучающую/тестовую выборку")
 
     return parser.parse_args()
