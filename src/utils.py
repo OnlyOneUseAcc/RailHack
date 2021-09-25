@@ -2,6 +2,7 @@ import pandas as pd
 from impyute.imputation.cs import mice
 from tqdm import tqdm
 from baseline.raifhack_ds.settings import NUM_FEATURES
+from sklearn.ensemble import IsolationForest
 import numpy as np
 import re
 
@@ -36,8 +37,9 @@ def fill_empty_values_by_location(full_data):
                 city_len = region_data[['id', 'city']].groupby(by='city').count()
 
                 if city_len[city_len.id > THRESHOLD_CAPITAL].shape[0] > 0:
-                    names = list(city_len[city_len['id'] < THRESHOLD_CAPITAL].index)
-                    current_region_data = region_data[~ region_data['city'].isin(names)]
+                    names = list(city_len[~city_len['id'] < THRESHOLD_CAPITAL].index)
+                    current_region_data = region_data.loc[
+                        region_data['city'].isin(names) | (region_data.index.get_level_values(0).isin(city_indexes))]
 
                     full_region_data = fill_empty_values(current_region_data.loc[:, NUM_FEATURES])
                     full_data.loc[city_indexes, NUM_FEATURES] = full_region_data.loc[city_indexes, NUM_FEATURES]
@@ -115,3 +117,27 @@ def drop_corr(data: pd.DataFrame, tresh=0.9):
             drop_columns.extend(corr_values.index)
 
     return drop_columns
+
+
+def dropna_value(data):
+    drop_cols = ['osm_city_nearest_population', 'street']
+    data.drop(columns=drop_cols, inplace=True)
+    corr_data = data.dropna()
+    return corr_data
+
+
+def drop_anomaly(data):
+    clf = IsolationForest(max_samples=100, random_state=1, contamination='auto')
+    preds = clf.fit_predict(data.drop(columns=['city', 'id', 'region', 'date', 'osm_city_nearest_name']))
+    data['anomaly'] = preds
+    print(data.shape, len(preds))
+    print(np.unique(preds))
+    data = data.loc[data.anomaly == 1]
+    print(data.shape, sum(preds))
+    data.drop(columns='anomaly', inplace=True)
+    return data
+
+
+def drop_price(data, target, treshhold_full_price=2 + 1e8):
+    corr_data = data.loc[(data['total_square'] * data[target]) < (treshhold_full_price)]
+    return corr_data
