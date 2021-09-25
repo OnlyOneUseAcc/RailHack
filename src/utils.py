@@ -65,7 +65,7 @@ def get_popular_words(data: pd.DataFrame, n=5):
 
     popular_words = np.unique(popular_words, return_counts=True)
 
-    popular_words = pd.DataFrame(index=popular_words[0], data=popular_words[1])\
+    popular_words = pd.DataFrame(index=popular_words[0], data=popular_words[1]) \
         .sort_values(by=0, ascending=False).head().index.values
 
     return popular_words
@@ -100,3 +100,18 @@ def fill_floors(data: pd.DataFrame, range_floors):
                         break
 
     return data
+
+
+def drop_corr(data: pd.DataFrame, tresh=0.9):
+    data_corr = data.corr()
+
+    for i in range(data_corr.shape[0]):
+        data_corr.iloc[i, i + 1:] = 0
+    drop_columns = list()
+
+    for col in data_corr.columns:
+        corr_values = data_corr.loc[(data_corr[col] >= tresh) & (data_corr[col] != 1)]
+        if col not in drop_columns and len(corr_values.index) != 0:
+            drop_columns.extend(corr_values.index)
+
+    return drop_columns
