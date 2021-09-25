@@ -2,7 +2,8 @@ import pandas as pd
 from impyute.imputation.cs import mice
 from tqdm import tqdm
 from baseline.raifhack_ds.settings import NUM_FEATURES
-
+import numpy as np
+import re
 
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
@@ -46,5 +47,56 @@ def fill_empty_values_by_location(full_data):
     return full_data
 
 
+def get_floor_info(data: pd.DataFrame, n=5):
+    popular_words = get_popular_words(data, n)
+    data[popular_words] = 0
+    data = fill_popular_words(data, popular_words)
+    range_floors = {5: '-5-5', 15: '6-15', 25: '16-25', 50: '26-50', 100: '51-100', 10000: '101+'}
+    data[list(range_floors.values())] = 0
+    data = fill_floors(data, range_floors)
+
+    return data
 
 
+def get_popular_words(data: pd.DataFrame, n=5):
+    popular_words = list()
+    for line in data.loc[data.floor.notna(), 'floor']:
+        popular_words.extend(re.findall('[а-яА-Я]{3,}', str(line).lower()))
+
+    popular_words = np.unique(popular_words, return_counts=True)
+
+    popular_words = pd.DataFrame(index=popular_words[0], data=popular_words[1])\
+        .sort_values(by=0, ascending=False).head().index.values
+
+    return popular_words
+
+
+def fill_popular_words(data: pd.DataFrame, popular_words):
+    data[popular_words] = 0
+    for ind in data.index.values:
+        for popular_word in popular_words:
+            if popular_word in str(data.loc[ind, 'floor']):
+                data.loc[ind, popular_word] = 1
+    return data
+
+
+def fill_floors(data: pd.DataFrame, range_floors):
+    for ind in tqdm(data.index.values):
+        line = str(data.loc[ind, 'floor'])
+        floor_range = re.findall('[0-9]+-[0-9]+', line)
+        floors = re.findall('-?[0-9]*[.]?[0-9]+', line)
+        if len(floor_range) != 0:
+            for fl in floor_range:
+                for floor in range(int(fl[0]), int(fl[-1])):
+                    for key in list(range_floors.keys()):
+                        if floor <= key:
+                            data.loc[ind, range_floors[key]] = +1
+                            break
+        elif len(floors) != 0:
+            for fl in floors:
+                for key in list(range_floors.keys()):
+                    if float(fl) <= key:
+                        data.loc[ind, range_floors[key]] = +1
+                        break
+
+    return data
