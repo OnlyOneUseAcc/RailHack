@@ -1,7 +1,7 @@
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import train_test_split
@@ -22,12 +22,16 @@ class HouseModel:
         return self.regression_model.predict(X)
 
     def __create_model(self):
-        model = SuperLearner()
-        model.add([KNeighborsRegressor(n_neighbors=7),
-                   LinearRegression(),
-                   DecisionTreeRegressor()])
-        model.add_meta(Ridge(alpha=0.5))
+        model = SuperLearner(verbose=2)
+        model.add([
+            KNeighborsRegressor(n_neighbors=10),
+            RandomForestRegressor()
+        ])
+
+        model.add_meta( LinearRegression())
         return model
+
+#class ErrorMin:
 
 
 if __name__ == '__main__':

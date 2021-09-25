@@ -1,11 +1,16 @@
 import argparse
+
+import mlens
 import pandas as pd
 from sklearn.metrics import r2_score
 
 from model import HouseModel
+from settings import NUM_FEATURES
+from metrics import deviation_metric
 from sklearn.model_selection import train_test_split
 import pickle
-
+from mlens.utils.utils import pickle_save
+from utils import default_preprocess
 
 
 def parse_bool(str_argument):
@@ -37,26 +42,21 @@ if __name__ == '__main__':
     args = vars(parse_args())
     train_df = pd.read_csv(args['d'])
     X = train_df.drop(columns='per_square_meter_price')
-    y = train_df['train_df']
+    y = train_df['per_square_meter_price']
     if args['preprocess']:
-
+        X = default_preprocess(X)
+        print('pre proc finish')
         pass
 
     model = HouseModel()
 
     if not args['split_data']:
         model.fit(X, y)
-        with open(f'{args["mp"]}', 'wb') as model_file:
-            pickle.dump(model, model_file)
+        print('finish fit')
+        pickle_save(name=f'{args["mp"]}', obj=model)
     else:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
         model.fit(X_train, y_train)
-
-        with open(f'{args["mp"]}', 'wb') as model_file:
-            pickle.dump(model, model_file)
-
         predictions = model.predict(X_test)
-
-        print(r2_score(y_test, predictions))
-
-    pass
+        pickle_save(name=f'{args["mp"]}', obj=model)
+        print(deviation_metric(y_test.values, predictions))

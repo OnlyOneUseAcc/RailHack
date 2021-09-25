@@ -1,9 +1,10 @@
 import pandas as pd
 from impyute.imputation.cs import mice
 from tqdm import tqdm
-from baseline.raifhack_ds.settings import NUM_FEATURES
+from settings import NUM_FEATURES
 import numpy as np
 import re
+from sklearn import preprocessing
 
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
@@ -99,4 +100,11 @@ def fill_floors(data: pd.DataFrame, range_floors):
                         data.loc[ind, range_floors[key]] = +1
                         break
 
+    return data
+
+
+def default_preprocess(data):
+    data = data[NUM_FEATURES].fillna(0)
+    scaler = preprocessing.MinMaxScaler()
+    data = scaler.fit_transform(data)
     return data
