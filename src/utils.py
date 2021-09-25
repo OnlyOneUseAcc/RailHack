@@ -1,7 +1,8 @@
 import pickle
 import pandas as pd
+from impyute.imputation.cs import mice
 from tqdm import tqdm
-from settings import NUM_FEATURES
+from src.settings import NUM_FEATURES
 from sklearn.ensemble import IsolationForest
 import numpy as np
 import re
@@ -10,7 +11,8 @@ from sklearn import preprocessing
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
 
-'''
+DROPPED_COLUMNS = ['city', 'id', 'osm_city_nearest_name', 'region', 'street', 'date']
+
 
 def fill_empty_values(data: pd.DataFrame):
     imputed_training = mice(data.values)
@@ -20,8 +22,6 @@ def fill_empty_values(data: pd.DataFrame):
     return pd.DataFrame(data_array,
                         columns=data.columns,
                         index=data.index)
-
-'''
 
 
 def fill_empty_values_by_location(full_data):
@@ -120,7 +120,7 @@ def drop_corr(data: pd.DataFrame, tresh=0.9):
         if col not in drop_columns and len(corr_values.index) != 0:
             drop_columns.extend(corr_values.index)
 
-    return drop_columns
+    return set(drop_columns)
 
 
 def dropna_value(data):
@@ -147,20 +147,60 @@ def drop_price(data, target, treshhold_full_price=2 + 1e8):
     return corr_data
 
 
+CORR_COLS = ['osm_amenity_points_in_0.01',
+             'osm_healthcare_points_in_0.01',
+             'osm_hotels_points_in_0.01',
+             'osm_offices_points_in_0.01',
+             'osm_shops_points_in_0.001',
+             'reform_mean_floor_count_500',
+             'osm_shops_points_in_0.01',
+             'osm_crossing_points_in_0.01',
+             'osm_hotels_points_in_0.0075',
+             'osm_healthcare_points_in_0.0075',
+             'osm_crossing_points_in_0.0075',
+             'osm_culture_points_in_0.01',
+             'osm_historic_points_in_0.0075',
+             'osm_finance_points_in_0.0075',
+             'reform_mean_year_building_500',
+             'osm_historic_points_in_0.01',
+             'osm_building_points_in_0.0075',
+             'osm_catering_points_in_0.005',
+             'reform_count_of_houses_500',
+             'osm_offices_points_in_0.0075',
+             'osm_catering_points_in_0.01',
+             'osm_culture_points_in_0.0075',
+             'osm_shops_points_in_0.005',
+             'osm_amenity_points_in_0.0075',
+             'osm_transport_stop_points_in_0.0075',
+             'osm_finance_points_in_0.01',
+             'osm_leisure_points_in_0.0075',
+             'osm_shops_points_in_0.0075',
+             'osm_catering_points_in_0.0075']
 
-def default_preprocess(data, scaler=None):
-    data = data[NUM_FEATURES].fillna(0)
+
+def default_preprocess(data, scaler=None, target='per_square_meter_price'):
+    data = data.drop(columns='floor')
+
+    data = data.drop(columns=CORR_COLS)
+    data = drop_price(data, target)
+
+    data.loc[:, 'month'] = data['date'].dt.month
+    data.loc[:, 'day'] = data['date'].dt.day
+
+    data = data.drop(columns=DROPPED_COLUMNS)
+    data = data.apply(lambda col: col.fillna(col.mean()), axis=0)
+
     if scaler is None:
         scaler = preprocessing.MinMaxScaler()
         data = pd.DataFrame(scaler.fit_transform(data),
-                            columns=NUM_FEATURES,
+                            columns=data.columns,
                             index=data.index)
-        with open('../models/scaler.pkl', 'wb') as scaler_file:
+        with open('models/scaler.pkl', 'wb') as scaler_file:
             pickle.dump(scaler, scaler_file)
 
     else:
         data = pd.DataFrame(scaler.transform(data),
-                            columns=NUM_FEATURES,
+                            columns=data.columns,
                             index=data.index)
 
     return data
