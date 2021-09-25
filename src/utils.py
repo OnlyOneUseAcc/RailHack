@@ -1,10 +1,12 @@
+import pickle
 import pandas as pd
 from impyute.imputation.cs import mice
 from tqdm import tqdm
-from baseline.raifhack_ds.settings import NUM_FEATURES
+from settings import NUM_FEATURES
 from sklearn.ensemble import IsolationForest
 import numpy as np
 import re
+from sklearn import preprocessing
 
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
@@ -141,3 +143,22 @@ def drop_anomaly(data):
 def drop_price(data, target, treshhold_full_price=2 + 1e8):
     corr_data = data.loc[(data['total_square'] * data[target]) < (treshhold_full_price)]
     return corr_data
+
+
+
+def default_preprocess(data, scaler=None):
+    data = data[NUM_FEATURES].fillna(0)
+    if scaler is None:
+        scaler = preprocessing.MinMaxScaler()
+        data = pd.DataFrame(scaler.fit_transform(data),
+                            columns=NUM_FEATURES,
+                            index=data.index)
+        with open('models/scaler.pkl', 'wb') as scaler_file:
+            pickle.dump(scaler, scaler_file)
+
+    else:
+        data = pd.DataFrame(scaler.transform(data),
+                            columns=NUM_FEATURES,
+                            index=data.index)
+
+    return data

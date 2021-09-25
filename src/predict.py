@@ -1,7 +1,9 @@
-import pickle
 import argparse
 import pandas as pd
 
+from utils import default_preprocess
+from settings import NUM_FEATURES
+from mlens.utils.utils import pickle_load
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -24,9 +26,10 @@ if __name__ == '__main__':
 
     test_data = pd.read_csv(args['d'])
 
-    with open(f'{args}', 'rb') as model_file:
-        model = pickle.load(model_file)
+    test_data.loc[:,  NUM_FEATURES] = default_preprocess(test_data)
 
-    test_data['per_square_meter_price'] = model.predict(test_data)
-
+    model = pickle_load(name=f'{args["mp"]}')
+    test_data['per_square_meter_price'] = model.predict(test_data.loc[:,  NUM_FEATURES])
     test_data[['id', 'per_square_meter_price']].to_csv(args['o'], index=False)
+
+
