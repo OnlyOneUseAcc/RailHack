@@ -1,3 +1,5 @@
+import pickle
+
 import pandas as pd
 from impyute.imputation.cs import mice
 from tqdm import tqdm
@@ -103,8 +105,19 @@ def fill_floors(data: pd.DataFrame, range_floors):
     return data
 
 
-def default_preprocess(data):
+def default_preprocess(data, scaler=None):
     data = data[NUM_FEATURES].fillna(0)
-    scaler = preprocessing.MinMaxScaler()
-    data = scaler.fit_transform(data)
+    if scaler is None:
+        scaler = preprocessing.MinMaxScaler()
+        data = pd.DataFrame(scaler.fit_transform(data),
+                            columns=NUM_FEATURES,
+                            index=data.index)
+        with open('models/scaler.pkl', 'wb') as scaler_file:
+            pickle.dump(scaler, scaler_file)
+
+    else:
+        data = pd.DataFrame(scaler.transform(data),
+                            columns=NUM_FEATURES,
+                            index=data.index)
+
     return data

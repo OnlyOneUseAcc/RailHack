@@ -4,7 +4,7 @@ import mlens
 import pandas as pd
 from sklearn.metrics import r2_score
 
-from model import HouseModel
+from model import HouseModel, DataModel
 from settings import NUM_FEATURES
 from metrics import deviation_metric
 from sklearn.model_selection import train_test_split
@@ -41,22 +41,16 @@ def parse_args():
 if __name__ == '__main__':
     args = vars(parse_args())
     train_df = pd.read_csv(args['d'])
-    X = train_df.drop(columns='per_square_meter_price')
-    y = train_df['per_square_meter_price']
-    if args['preprocess']:
-        X = default_preprocess(X)
-        print('pre proc finish')
-        pass
 
+    if args['preprocess']:
+        preprocess_method = default_preprocess
+    else:
+        preprocess_method = None
+
+    data_model = DataModel(train_df, preprocess_method)
     model = HouseModel()
 
-    if not args['split_data']:
-        model.fit(X, y)
-        print('finish fit')
-        pickle_save(name=f'{args["mp"]}', obj=model)
-    else:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
-        model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
-        pickle_save(name=f'{args["mp"]}', obj=model)
-        print(deviation_metric(y_test.values, predictions))
+    model.fit(data_model)
+    predictions = model.predict(data_model.e_X_test)
+    pickle_save(name=f'{args["mp"]}', obj=model)
+    print(deviation_metric(data_model.e_y_test.values, predictions))
