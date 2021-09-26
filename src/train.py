@@ -10,7 +10,7 @@ from metrics import deviation_metric
 from sklearn.model_selection import train_test_split
 import pickle
 from mlens.utils.utils import pickle_save
-from utils import default_preprocess
+from utils import train_preproc
 
 
 def parse_bool(str_argument):
@@ -41,9 +41,8 @@ def parse_args():
 if __name__ == '__main__':
     args = vars(parse_args())
     train_df = pd.read_csv(args['d'])
-
     if args['preprocess']:
-        preprocess_method = default_preprocess
+        preprocess_method = train_preproc
     else:
         preprocess_method = None
 

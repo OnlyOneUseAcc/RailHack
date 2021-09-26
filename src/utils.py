@@ -1,6 +1,5 @@
 import pickle
 import pandas as pd
-from impyute.imputation.cs import mice
 from tqdm import tqdm
 from src.settings import NUM_FEATURES
 from sklearn.ensemble import IsolationForest
@@ -11,46 +10,7 @@ from sklearn import preprocessing
 THRESHOLD = 7500
 THRESHOLD_CAPITAL = 3000
 
-DROPPED_COLUMNS = ['city', 'id', 'osm_city_nearest_name', 'region', 'street', 'date']
-
-
-def fill_empty_values(data: pd.DataFrame):
-    imputed_training = mice(data.values)
-    empty_mask = data.isna()
-    data_array = data.values
-    data_array[empty_mask] = imputed_training[empty_mask]
-    return pd.DataFrame(data_array,
-                        columns=data.columns,
-                        index=data.index)
-
-
-def fill_empty_values_by_location(full_data):
-    city_table = full_data[['city', 'id']].groupby(by=['city']).count()
-
-    for unique_region in pd.unique(full_data.loc[:, 'region']):
-        region_data = full_data[full_data['region'] == unique_region]
-        print(unique_region)
-        for unique_city in tqdm(pd.unique(region_data.loc[:, 'city'])):
-            current_city_table = region_data[region_data['city'] == unique_city].copy()
-            city_indexes = current_city_table.index
-
-            if city_table.loc[unique_city, 'id'] > THRESHOLD:
-                current_city_table.loc[:, NUM_FEATURES] = fill_empty_values(current_city_table[NUM_FEATURES])
-                full_data.loc[city_indexes, :] = current_city_table
-            else:
-                city_len = region_data[['id', 'city']].groupby(by='city').count()
-
-                if city_len[city_len.id > THRESHOLD_CAPITAL].shape[0] > 0:
-                    names = list(city_len[~city_len['id'] < THRESHOLD_CAPITAL].index)
-                    current_region_data = region_data.loc[
-                        region_data['city'].isin(names) | (region_data.index.get_level_values(0).isin(city_indexes))]
-
-                    full_region_data = fill_empty_values(current_region_data.loc[:, NUM_FEATURES])
-                    full_data.loc[city_indexes, NUM_FEATURES] = full_region_data.loc[city_indexes, NUM_FEATURES]
-                else:
-                    full_region_data = fill_empty_values(region_data.loc[:, NUM_FEATURES])
-                    full_data.loc[city_indexes, NUM_FEATURES] = full_region_data.loc[city_indexes, NUM_FEATURES]
-    return full_data
+DROPPED_COLUMNS = ['city', 'osm_city_nearest_name', 'region', 'street', 'date', 'price_type', 'floor']
 
 
 def get_floor_info(data: pd.DataFrame, n=5):
@@ -108,7 +68,7 @@ def fill_floors(data: pd.DataFrame, range_floors):
     return data
 
 
-def drop_corr(data: pd.DataFrame, tresh=0.9):
+def drop_corr(data: pd.DataFrame, tresh=0.8):
     data_corr = data.corr()
 
     for i in range(data_corr.shape[0]):
@@ -178,29 +138,51 @@ CORR_COLS = ['osm_amenity_points_in_0.01',
              'osm_catering_points_in_0.0075']
 
 
-def default_preprocess(data, scaler=None, target='per_square_meter_price'):
-    data = data.drop(columns='floor')
-
+def default_preprocess(data):
     data = data.drop(columns=CORR_COLS)
-    data = drop_price(data, target)
 
+    data.loc[:, 'date'] = pd.to_datetime(data.date, format='%Y-%m-%d')
     data.loc[:, 'month'] = data['date'].dt.month
     data.loc[:, 'day'] = data['date'].dt.day
 
     data = data.drop(columns=DROPPED_COLUMNS)
     data = data.apply(lambda col: col.fillna(col.mean()), axis=0)
 
-    if scaler is None:
-        scaler = preprocessing.MinMaxScaler()
-        data = pd.DataFrame(scaler.fit_transform(data),
-                            columns=data.columns,
-                            index=data.index)
-        with open('models/scaler.pkl', 'wb') as scaler_file:
-            pickle.dump(scaler, scaler_file)
+    return data
 
-    else:
-        data = pd.DataFrame(scaler.transform(data),
-                            columns=data.columns,
-                            index=data.index)
+
+def train_preproc(data):
+    target = 'per_square_meter_price'
+    data = drop_price(data, target)
+    data = data.drop(columns='id')
+    data.drop(columns=target, inplace=True)
+
+    data = default_preprocess(data)
+
+    with open('../models/col_list.pkl', 'wb') as list_columns:
+        train_columns = data.columns
+        pickle.dump(train_columns, list_columns)
+
+    scaler = preprocessing.MinMaxScaler()
+    data = pd.DataFrame(scaler.fit_transform(data),
+                        columns=data.columns,
+                        index=data.index)
+    with open('../models/scaler.pkl', 'wb') as scaler_file:
+        pickle.dump(scaler, scaler_file)
+
+    return data
+
+
+def test_preproc(data, scaler):
+    data = data.drop(columns='id')
+    data = default_preprocess(data)
+
+    with open('../models/col_list.pkl', 'rb') as list_columns:
+        train_columns = pickle.load(list_columns)
+        data = data.loc[:, train_columns]
+
+    data = pd.DataFrame(scaler.transform(data),
+                        columns=data.columns,
+                        index=data.index)
 
     return data
